@@ -1,0 +1,70 @@
+####
+# ATENTION:
+# Replace all occurences of sandbox with your project's name
+####
+
+# v2 sintax
+version: '2'
+
+# Named volumes
+volumes:
+  # Postgres Data
+  krill-postgres-data:
+    driver: local
+
+  # MySQL Data
+  krill-mysql-data:
+    driver: local
+
+  # Redis Data
+  krill-redis-data:
+    driver: local
+
+services:
+  # MySQL (5.7)
+  mysql:
+    image: ambientum/mysql:5.7
+    container_name: krill-mysql
+    volumes:
+      - krill-mysql-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=krill
+      - MYSQL_DATABASE=krill
+      - MYSQL_USER=krill
+      - MYSQL_PASSWORD=krill
+
+  # Redis
+  cache:
+    image: ambientum/redis:3.2
+    container_name: krill-redis
+    command: --appendonly yes
+    volumes:
+      - krill-redis-data:/data
+    ports:
+      - "6379:6379"
+
+  # krill app (with Caddy)
+  app:
+    image: ambientum/php:7.0-caddy
+    container_name: krill-app
+    volumes:
+      - .:/var/www/app
+    ports:
+      - "80:8080"
+    links:
+      - postgres
+      - mysql
+      - cache
+
+  # Laravel Queues
+  queue:
+    image: ambientum/php:7.0
+    container_name: krill-queue
+    command: php artisan queue:listen
+    volumes:
+      - .:/var/www/app
+    links:
+      - mysql
+      - cache
